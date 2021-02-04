@@ -1,203 +1,31 @@
 #/bin/env bash
 set -ex
 
+mkdir -p /opt/stampede
 
-function get_rke_binary {
-  wget https://github.com/rancher/rke/releases/download/v1.0.16/rke_linux-amd64 -O rke
-  chmod +x rke
-  cp rke /usr/local/bin
-}
+#Install Go
+snap install go --classic
 
+#Build binary
+cd /opt/stampede && go build -o /usr/local/bin/stampede .
 
-function build_cluster_config () {
-cat << EOF > /home/$RKE_USER/cluster.yml
-nodes:
-- address: "$1"
-  port: "22"
-  internal_address: ""
-  role:
-  - controlplane
-  - etcd
-  hostname_override: ""
-  user: $RKE_USER
-  docker_socket: /var/run/docker.sock
-  ssh_key: ""
-  ssh_key_path: /home/$RKE_USER/.ssh/id_rsa
-  ssh_cert: ""
-  ssh_cert_path: ""
-  labels: {}
-  taints: []
-- address: "$2"
-  port: "22"
-  internal_address: ""
-  role:
-  - controlplane
-  - etcd
-  hostname_override: ""
-  user: $RKE_USER
-  docker_socket: /var/run/docker.sock
-  ssh_key: ""
-  ssh_key_path: /home/$RKE_USER/.ssh/id_rsa
-  ssh_cert: ""
-  ssh_cert_path: ""
-  labels: {}
-  taints: []
-- address: "$3"
-  port: "22"
-  internal_address: ""
-  role:
-  - controlplane
-  - etcd
-  hostname_override: ""
-  user: $RKE_USER
-  docker_socket: /var/run/docker.sock
-  ssh_key: ""
-  ssh_key_path: /home/$RKE_USER/.ssh/id_rsa
-  ssh_cert: ""
-  ssh_cert_path: ""
-  labels: {}
-  taints: []
-services:
-  etcd:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-    external_urls: []
-    ca_cert: ""
-    cert: ""
-    key: ""
-    path: ""
-    uid: 0
-    gid: 0
-    snapshot: null
-    retention: ""
-    creation: ""
-    backup_config: null
-  kube-api:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-    service_cluster_ip_range: 10.43.0.0/16
-    service_node_port_range: ""
-    pod_security_policy: false
-    always_pull_images: false
-    secrets_encryption_config: null
-    audit_log: null
-    admission_configuration: null
-    event_rate_limit: null
-  kube-controller:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-    cluster_cidr: 10.42.0.0/16
-    service_cluster_ip_range: 10.43.0.0/16
-  scheduler:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-  kubelet:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-    cluster_domain: cluster.local
-    infra_container_image: ""
-    cluster_dns_server: 10.43.0.10
-    fail_swap_on: false
-    generate_serving_certificate: false
-  kubeproxy:
-    image: ""
-    extra_args: {}
-    extra_binds: []
-    extra_env: []
-network:
-  plugin: none
-authentication:
-  strategy: x509
-  sans: []
-  webhook: null
-addons: ""
-addons_include: []
-system_images:
-  etcd: rancher/coreos-etcd:v3.4.3-rancher1
-  alpine: rancher/rke-tools:v0.1.69
-  nginx_proxy: rancher/rke-tools:v0.1.69
-  cert_downloader: rancher/rke-tools:v0.1.69
-  kubernetes_services_sidecar: rancher/rke-tools:v0.1.69
-  kubedns: rancher/k8s-dns-kube-dns:1.15.0
-  dnsmasq: rancher/k8s-dns-dnsmasq-nanny:1.15.0
-  kubedns_sidecar: rancher/k8s-dns-sidecar:1.15.0
-  kubedns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
-  coredns: rancher/coredns-coredns:1.6.5
-  coredns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
-  nodelocal: rancher/k8s-dns-node-cache:1.15.7
-  kubernetes: rancher/hyperkube:v1.17.17-rancher1
-  flannel: rancher/coreos-flannel:v0.12.0
-  flannel_cni: rancher/flannel-cni:v0.3.0-rancher6
-  calico_node: rancher/calico-node:v3.13.4
-  calico_cni: rancher/calico-cni:v3.13.4
-  calico_controllers: rancher/calico-kube-controllers:v3.13.4
-  calico_ctl: rancher/calico-ctl:v3.13.4
-  calico_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
-  canal_node: rancher/calico-node:v3.13.4
-  canal_cni: rancher/calico-cni:v3.13.4
-  canal_flannel: rancher/coreos-flannel:v0.12.0
-  canal_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
-  weave_node: weaveworks/weave-kube:2.6.4
-  weave_cni: weaveworks/weave-npc:2.6.4
-  pod_infra_container: rancher/pause:3.1
-  ingress: rancher/nginx-ingress-controller:nginx-0.35.0-rancher2
-  ingress_backend: rancher/nginx-ingress-controller-defaultbackend:1.5-rancher1
-  metrics_server: rancher/metrics-server:v0.3.6
-  windows_pod_infra_container: rancher/kubelet-pause:v0.1.4
-ssh_key_path: ~/.ssh/id_rsa
-ssh_cert_path: ""
-ssh_agent_auth: false
-authorization:
-  mode: rbac
-  options: {}
-ignore_docker_version: false
-kubernetes_version: ""
-private_registries: []
-ingress:
-  provider: ""
-  options: {}
-  node_selector: {}
-  extra_args: {}
-  dns_policy: ""
-  extra_envs: []
-  extra_volumes: []
-  extra_volume_mounts: []
-cluster_name: ""
-cloud_provider:
-  name: ""
-prefix_path: ""
-addon_job_timeout: 0
-bastion_host:
-  address: ""
-  port: ""
-  user: ""
-  ssh_key: ""
-  ssh_key_path: ""
-  ssh_cert: ""
-  ssh_cert_path: ""
-monitoring:
-  provider: ""
-  options: {}
-  node_selector: {}
-restore:
-  restore: false
-  snapshot_name: ""
-dns: null
+#Install microk8s
+snap install microk8s --classic --channel=1.18/stable
 
+#Send multicast traffic through default interface
+ip route add 224.0.0.0/4 dev $(route | grep '^default' | grep -o '[^ ]*$')
+
+#Setup stampede systemd service
+cat << EOF > /lib/systemd/system/stampede.service
+[Unit]
+Description=stampede is a microk8s bootstrapping utility to elect a leader and add nodes
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5s
+ExecStart=/usr/local/bin/stampede
+
+[Install]
+WantedBy=multi-user.target
 EOF
-}
-
-
-function rke_up {
-  sudo -H -u rke bash -c 'cd $HOME && rke up --debug'
-}

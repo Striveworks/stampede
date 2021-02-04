@@ -2,44 +2,40 @@ package pkg
 
 import (
 	"net"
+	"strings"
 	"time"
 )
 
-type LeaderMessage struct {
+type Message struct {
 	Type      string    `json:"type"`
 	Timestamp time.Time `json:"time"`
+	Recipient string    `json:"recipient"`
 	Message   string    `json:"message"`
 	Node      Node      `json:"node"`
 }
 
-type LeaderResponse struct {
-	LeaderMessage LeaderMessage  `json:"leader"`
-	Address       net.Addr       `json:"address"`
-	Connection    net.PacketConn `json:"connection"`
-}
-
-func BecomeLeader(node Node) {
-	m := LeaderMessage{Type: "Election", Message: "Win", Timestamp: time.Now(), Node: node}
-	Broadcast(m)
+type MessageResponse struct {
+	Message    Message        `json:"message"`
+	Address    net.Addr       `json:"address"`
+	Connection net.PacketConn `json:"connection"`
 }
 
 func LeaderAsk(node Node) {
-	m := LeaderMessage{Type: "Election", Message: "Vote", Timestamp: time.Now(), Node: node}
+	m := Message{Type: "Election", Message: "Vote", Timestamp: time.Now(), Node: node}
 	Broadcast(m)
-}
-
-func DenyElection(node Node) {
-	m := LeaderMessage{Type: "Election", Message: "Denied", Timestamp: time.Now(), Node: node}
-	Broadcast(m)
-
 }
 
 func HeartBeat(node Node) {
-	m := LeaderMessage{Type: "Heartbeat", Message: "Alive", Timestamp: time.Now(), Node: node}
+	m := Message{Type: "Heartbeat", Message: "Alive", Timestamp: time.Now(), Node: node}
 	Broadcast(m)
 }
 
-func LeaderEnforce(node Node) {
-	m := LeaderMessage{Type: "Heartbeat", Message: "Leader", Timestamp: time.Now(), Node: node}
+func JoinRequest(node Node) {
+	m := Message{Type: "JoinRequest", Message: "", Timestamp: time.Now(), Node: node}
+	Broadcast(m)
+}
+
+func JoinResponse(uuid string, keys []string) {
+	m := Message{Type: "JoinResponse", Recipient: uuid, Message: strings.Join(keys, " "), Timestamp: time.Now()}
 	Broadcast(m)
 }

@@ -11,7 +11,7 @@ const (
 )
 
 //Broadcast ..
-func Broadcast(leaderMessage LeaderMessage) {
+func Broadcast(leaderMessage Message) {
 	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
 		panic(err)
@@ -32,7 +32,7 @@ func Broadcast(leaderMessage LeaderMessage) {
 }
 
 //Listen ..
-func Listen(c chan LeaderResponse) {
+func Listen(c chan MessageResponse) {
 	defer close(c)
 	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
@@ -50,10 +50,10 @@ func Listen(c chan LeaderResponse) {
 			panic(err)
 		}
 		data := buf[:n]
-		var response LeaderMessage
+		var response Message
 		err = json.Unmarshal(data, &response)
 
-		result := LeaderResponse{LeaderMessage: response, Address: addr, Connection: conn}
+		result := MessageResponse{Message: response, Address: addr, Connection: conn}
 
 		c <- result
 

@@ -1,6 +1,9 @@
 package pkg
 
 import (
+	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -9,126 +12,157 @@ import (
 
 const (
 	voteCount = 10
+	stateFile = "/opt/stampede/is-joined"
+)
+
+var (
+	nodePool    map[string]Node
+	currentNode Node
+	votes       int
 )
 
 type Node struct {
-	UUID          string    `json:"uuid"`
-	IsLeader      bool      `json:"isleader"`
-	Voting        bool      `json:"voting"`
-	ElectionTime  time.Time `json:"election"`
-	LastHeartBeat time.Time `json:"hearbeat"`
+	UUID            string    `json:"uuid"`
+	IsLeader        bool      `json:"isleader"`
+	IsJoined        bool      `json:"isjoined"`
+	LastJoinRequest time.Time `json:"lastjoinrequest"`
+	Voting          bool      `json:"voting"`
+	ElectionTime    time.Time `json:"election"`
+	LastHeartBeat   time.Time `json:"hearbeat"`
 }
 
-//NodeConfig ...
-type NodeConfig struct {
-	IsLeader bool
-}
-
-//New ...
-func New(cfg *NodeConfig) Node {
-
+//CreateNode ...
+func CreateNode() Node {
 	return Node{
-		UUID:     generateUUID().String(),
-		IsLeader: cfg.IsLeader,
+		UUID:            generateUUID().String(),
+		IsLeader:        false,
+		LastJoinRequest: time.Now(),
 	}
 }
 
-func (node Node) Start() error {
-	listener := make(chan LeaderResponse)
-	//Use a nodePool map so lookup times are O(1)
-	nodePool := make(map[string]Node)
-	// electionDenials := 0
-	votes := 0
+func (node Node) Start() {
+	if _, err := os.Stat(stateFile); err == nil {
+		log.Info("Already a cluster member")
+		os.Exit(0)
+	}
 
-	go Listen(listener)
+	currentNode = node
+	nodePool = make(map[string]Node)
+	votes = 0
+
+	go recieve()
 
 	for {
-		// Create non-blocking channel to listen for UDP messages
+		go cleanNodePool()
+
+		if !currentNode.IsLeader && currentNode.Voting && votes >= voteCount {
+			currentNode.IsLeader = true
+			log.Info("I am the captain now!")
+
+		}
+
+		if !currentNode.IsLeader {
+			log.Info("Following")
+
+			if !currentNode.Voting {
+				currentNode.ElectionTime = time.Now()
+			}
+			electNode()
+
+			if time.Since(currentNode.LastJoinRequest).Seconds() > 20 && !currentNode.IsJoined {
+				currentNode.LastJoinRequest = time.Now()
+				JoinRequest(currentNode)
+			}
+		}
+		HeartBeat(currentNode)
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func electNode() {
+	latest, err := latestElection(nodePool)
+	if err != nil {
+		log.Error(err)
+	}
+	if len(nodePool) == 0 || latest.ElectionTime.After(currentNode.ElectionTime) {
+		currentNode.Voting = true
+		LeaderAsk(currentNode)
+		votes++
+		log.Info(votes, "/", voteCount, " votes")
+	}
+}
+
+func cleanNodePool() {
+	for _, v := range nodePool {
+		if time.Since(v.LastHeartBeat).Seconds() > 30 {
+			delete(nodePool, v.UUID)
+			log.Info("Deleted ", v.UUID, " from nodes")
+		}
+	}
+}
+
+func recieve() {
+	listener := make(chan MessageResponse)
+	go Listen(listener)
+
+	// Create non-blocking channel to listen for UDP messages
+	for {
 		select {
 		case response := <-listener:
-			//Only care about messages that aren't from myself
-			if response.LeaderMessage.Node.UUID != node.UUID {
-				log.Info(response)
-				//Reset Node Heartbeat time
-				response.LeaderMessage.Node.LastHeartBeat = time.Now()
+			if response.Message.Node.UUID != currentNode.UUID {
+				response.Message.Node.LastHeartBeat = time.Now()
 
-				//Add other nodes to NodePool
-				nodePool[response.LeaderMessage.Node.UUID] = response.LeaderMessage.Node
+				nodePool[response.Message.Node.UUID] = response.Message.Node
 
-				// //Increment Election denial
-				// if response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Denied" {
-				// 	electionDenials++
-				// }
-				//
-				// //Reject other leader elections if I am the leader
-				// if node.IsLeader && response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Vote" {
-				// 	log.Info("Blocking the election")
-				// 	DenyElection(node)
-				// }
+				if response.Message.Type == "JoinRequest" && currentNode.IsLeader {
+					addNode(response)
+				}
 
-				//TODO
-				//If I get heartbeats from other nodes and I am the leader, send back shared key
-
+				if response.Message.Type == "JoinResponse" && response.Message.Recipient == currentNode.UUID {
+					joinCluster(response)
+				}
 			}
 		default:
 		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
 
-		//If I am voting and have not heard any denies in election period, become Leader
-		if !node.IsLeader && node.Voting && votes >= voteCount {
-			BecomeLeader(node)
-			node.IsLeader = true
-			// log.Info("Have heard ", electionDenials, " denials")
-			log.Info("Assuming leader role")
-		}
+func addNode(response MessageResponse) {
+	app := "microk8s"
+	arg := "add-node"
 
-		//If I haven't already voted and it has been longer than the waitInterval, make leader election
-		if !node.IsLeader {
+	cmd := exec.Command(app, arg)
+	stdout, err := cmd.Output()
+	if err != nil {
+		log.Error(err)
+	}
+	msg := strings.Split(string(stdout), "\n")
+	log.Info(msg)
+	log.Info("Allowing ", response.Address, ": ", response.Message.Node.UUID, " to join. Sending keys")
+	JoinResponse(response.Message.Node.UUID, msg[len(msg)-5:])
+}
 
-			//Set intial vote time
-			if !node.Voting {
-				node.ElectionTime = time.Now()
+func joinCluster(response MessageResponse) {
+	for _, key := range strings.Split(response.Message.Message, " microk8s join ") {
+		app := "microk8s"
+		arg := "join"
+
+		cmd := exec.Command(app, arg, key)
+		_, err := cmd.Output()
+		if err == nil {
+			currentNode.IsJoined = true
+			_, err := os.Create(stateFile)
+			if err != nil {
+				log.Fatal(err)
 			}
-
-			//If I haven't gotten any heartbeats from other nodes
-			if len(nodePool) == 0 {
-				node.Voting = true
-				LeaderAsk(node)
-				votes++
-				log.Info(votes, "/", voteCount, " votes")
-			} else {
-				//If I have gotten heartbeats, but the ALL other node's election
-				// time came after mine still send a vote
-				latest, err := latestElection(nodePool)
-				if err != nil {
-					log.Error(err)
-				}
-				log.Info(latest.UUID)
-				if latest.ElectionTime.After(node.ElectionTime) {
-					node.Voting = true
-					LeaderAsk(node)
-					votes++
-					log.Info(votes, "/", voteCount, " votes")
-				}
-
-			}
+			log.Info("Joined cluster, shutting down...")
+			os.Exit(0)
 		}
-
-		HeartBeat(node)
-
-		log.Info(len(nodePool))
-		for _, v := range nodePool {
-			if time.Since(v.LastHeartBeat).Seconds() > 10 {
-				delete(nodePool, v.UUID)
-				log.Info("Deleted ", v.UUID, " from nodes")
-			}
-		}
-
-		if node.IsLeader {
-			log.Info("I am the captain now!")
-		} else {
-			log.Info("Following")
-		}
-		time.Sleep(1 * time.Second)
+	}
+	if !currentNode.IsJoined {
+		log.Error("Failed to join cluster")
 	}
 }
 
