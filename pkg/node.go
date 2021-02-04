@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	waitInterval     = 3
-	electionInterval = 3
+	voteCount = 10
 )
 
 type Node struct {
-	UUID         string    `json:"uuid"`
-	IsLeader     bool      `json:"isleader"`
-	Voting       bool      `json:"voting"`
-	ElectionTime time.Time `json:"election"`
+	UUID          string    `json:"uuid"`
+	IsLeader      bool      `json:"isleader"`
+	Voting        bool      `json:"voting"`
+	ElectionTime  time.Time `json:"election"`
+	LastHeartBeat time.Time `json:"hearbeat"`
 }
 
 //NodeConfig ...
@@ -37,8 +37,8 @@ func (node Node) Start() error {
 	listener := make(chan LeaderResponse)
 	//Use a nodePool map so lookup times are O(1)
 	nodePool := make(map[string]Node)
-	electionDenials := 0
-	startTime := time.Now()
+	// electionDenials := 0
+	votes := 0
 
 	go Listen(listener)
 
@@ -46,25 +46,25 @@ func (node Node) Start() error {
 		// Create non-blocking channel to listen for UDP messages
 		select {
 		case response := <-listener:
-			log.Info(response)
 			//Only care about messages that aren't from myself
 			if response.LeaderMessage.Node.UUID != node.UUID {
+				log.Info(response)
+				//Reset Node Heartbeat time
+				response.LeaderMessage.Node.LastHeartBeat = time.Now()
 
-				//Add other nodes to NodePool if they do not exist
-				if _, ok := nodePool[node.UUID]; ok {
-				} else {
-					nodePool[node.UUID] = node
-				}
+				//Add other nodes to NodePool
+				nodePool[response.LeaderMessage.Node.UUID] = response.LeaderMessage.Node
 
-				//Increment Election denial
-				if response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Denied" {
-					electionDenials++
-				}
-
-				//Reject other leader elections if I am the leader
-				if node.IsLeader && response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Vote" {
-					DenyElection(node)
-				}
+				// //Increment Election denial
+				// if response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Denied" {
+				// 	electionDenials++
+				// }
+				//
+				// //Reject other leader elections if I am the leader
+				// if node.IsLeader && response.LeaderMessage.Type == "Election" && response.LeaderMessage.Message == "Vote" {
+				// 	log.Info("Blocking the election")
+				// 	DenyElection(node)
+				// }
 
 				//TODO
 				//If I get heartbeats from other nodes and I am the leader, send back shared key
@@ -73,28 +73,61 @@ func (node Node) Start() error {
 		default:
 		}
 
-		waitElapsed := time.Since(startTime).Seconds()
-		electionElapsed := time.Since(node.ElectionTime).Seconds()
-
-		//If I am voting and have not heard any denies in election interval, become Leader
-		if !node.IsLeader && node.Voting && electionElapsed > electionInterval && electionDenials == 0 {
+		//If I am voting and have not heard any denies in election period, become Leader
+		if !node.IsLeader && node.Voting && votes >= voteCount {
 			BecomeLeader(node)
 			node.IsLeader = true
-			log.Info("Have heard ", electionDenials, " denials")
+			// log.Info("Have heard ", electionDenials, " denials")
 			log.Info("Assuming leader role")
 		}
 
-		//If I haven't gotten any heartbeats from other nodes in specified interval and I haven't already voted, make leader election
-		if !node.IsLeader && waitElapsed > waitInterval && !node.Voting && len(nodePool) == 0 {
-			node.Voting = true
-			node.ElectionTime = time.Now()
-			LeaderAsk(node)
-			log.Info("Sending election request")
+		//If I haven't already voted and it has been longer than the waitInterval, make leader election
+		if !node.IsLeader {
+
+			//Set intial vote time
+			if !node.Voting {
+				node.ElectionTime = time.Now()
+			}
+
+			//If I haven't gotten any heartbeats from other nodes
+			if len(nodePool) == 0 {
+				node.Voting = true
+				LeaderAsk(node)
+				votes++
+				log.Info(votes, "/", voteCount, " votes")
+			} else {
+				//If I have gotten heartbeats, but the ALL other node's election
+				// time came after mine still send a vote
+				latest, err := latestElection(nodePool)
+				if err != nil {
+					log.Error(err)
+				}
+				log.Info(latest.UUID)
+				if latest.ElectionTime.After(node.ElectionTime) {
+					node.Voting = true
+					LeaderAsk(node)
+					votes++
+					log.Info(votes, "/", voteCount, " votes")
+				}
+
+			}
 		}
 
-		//TODO
-		//Case when multiple nodes are competing for leader role
 		HeartBeat(node)
+
+		log.Info(len(nodePool))
+		for _, v := range nodePool {
+			if time.Since(v.LastHeartBeat).Seconds() > 10 {
+				delete(nodePool, v.UUID)
+				log.Info("Deleted ", v.UUID, " from nodes")
+			}
+		}
+
+		if node.IsLeader {
+			log.Info("I am the captain now!")
+		} else {
+			log.Info("Following")
+		}
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -111,4 +144,14 @@ func generateUUID() uuid.UUID {
 	}
 
 	return id
+}
+
+func latestElection(nodePool map[string]Node) (Node, error) {
+	latest := Node{ElectionTime: time.Now()}
+	for _, v := range nodePool {
+		if !v.ElectionTime.IsZero() && v.ElectionTime.Before(latest.ElectionTime) {
+			latest = v
+		}
+	}
+	return latest, nil
 }

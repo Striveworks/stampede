@@ -7,25 +7,24 @@ import (
 )
 
 const (
-	sendAddress   = "127.0.0.1:9999"
-	listenAddress = ":9999"
+	address = "224.0.0.1:9999"
 )
 
 //Broadcast ..
 func Broadcast(leaderMessage LeaderMessage) {
-	addr, err := net.ResolveUDPAddr("udp4", sendAddress)
+	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
 		panic(err)
 	}
 
-	conn, err := net.DialUDP("udp4", nil, addr)
+	conn, err := net.ListenUDP("udp4", addr)
 
 	var jsonData []byte
 	jsonData, err = json.Marshal(leaderMessage)
 	if err != nil {
 		log.Println(err)
 	}
-	_, err = conn.Write(jsonData)
+	_, err = conn.WriteToUDP(jsonData, addr)
 	if err != nil {
 		panic(err)
 	}
@@ -35,12 +34,15 @@ func Broadcast(leaderMessage LeaderMessage) {
 //Listen ..
 func Listen(c chan LeaderResponse) {
 	defer close(c)
-	conn, err := net.ListenPacket("udp4", listenAddress)
+	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
-
+	conn, err := net.ListenMulticastUDP("udp4", nil, addr)
+	if err != nil {
+		panic(err)
+	}
+	// Loop forever reading from the socket
 	for {
 		buf := make([]byte, 1024)
 		n, addr, err := conn.ReadFrom(buf)

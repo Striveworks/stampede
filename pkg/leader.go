@@ -38,3 +38,8 @@ func HeartBeat(node Node) {
 	m := LeaderMessage{Type: "Heartbeat", Message: "Alive", Timestamp: time.Now(), Node: node}
 	Broadcast(m)
 }
+
+func LeaderEnforce(node Node) {
+	m := LeaderMessage{Type: "Heartbeat", Message: "Leader", Timestamp: time.Now(), Node: node}
+	Broadcast(m)
+}
