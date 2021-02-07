@@ -10,8 +10,8 @@ const (
 	address = "224.0.0.1:9999"
 )
 
-//Broadcast ..
-func Broadcast(leaderMessage Message) {
+// Broadcast sends messages using UDP over a multicast channel
+func Broadcast(message Message) {
 	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
 		panic(err)
@@ -20,7 +20,7 @@ func Broadcast(leaderMessage Message) {
 	conn, err := net.ListenUDP("udp4", addr)
 
 	var jsonData []byte
-	jsonData, err = json.Marshal(leaderMessage)
+	jsonData, err = json.Marshal(message)
 	if err != nil {
 		log.Println(err)
 	}
@@ -31,7 +31,7 @@ func Broadcast(leaderMessage Message) {
 
 }
 
-//Listen ..
+//Listen recieves messages using UDP over a multicast channel
 func Listen(c chan MessageResponse) {
 	defer close(c)
 	addr, err := net.ResolveUDPAddr("udp4", address)

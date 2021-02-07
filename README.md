@@ -7,7 +7,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="stampede.png" alt="Logo" width="600" height="250">
+    <img src="stampede.png" alt="Logo" width="600" height="300">
   </a>
 
   <h3 align="center">Stampede</h3>
@@ -59,6 +59,8 @@
 ## About The Project
 Stampede is meant to make bootstrapping Microk8s clusters seamless. It uses a simple election protocol to elect a leader and then followers will follow. The leader bootstraps the cluster and deals out join tokens to any followers. All communication is handled via a specified multicast channel.
 
+This project is inspired by Chic-fil-A's [Highlander](https://medium.com/@cfatechblog/bare-metal-k8s-clustering-at-chick-fil-a-scale-7b0607bd3541)
+
 ### Built With
 
 
@@ -84,6 +86,10 @@ Currently, this project only offers support for Ubuntu distributions
 
 1. `make test`
 
+
+### Generating documentation
+
+1. `make docs`
 
 <!-- ROADMAP -->
 ## Roadmap

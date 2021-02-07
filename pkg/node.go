@@ -21,17 +21,18 @@ var (
 	votes       int
 )
 
+// Node represents each individual node instance
 type Node struct {
-	UUID            string    `json:"uuid"`
-	IsLeader        bool      `json:"isleader"`
-	IsJoined        bool      `json:"isjoined"`
-	LastJoinRequest time.Time `json:"lastjoinrequest"`
-	Voting          bool      `json:"voting"`
-	ElectionTime    time.Time `json:"election"`
-	LastHeartBeat   time.Time `json:"hearbeat"`
+	UUID            string    `json:"uuid"`            // UUID to uniquely identify each node
+	IsLeader        bool      `json:"isleader"`        // Identifies if node is leader
+	IsJoined        bool      `json:"isjoined"`        // Identifies if node has joined the cluster
+	LastJoinRequest time.Time `json:"lastjoinrequest"` // Timestamp of last join request
+	Voting          bool      `json:"voting"`          // Identifies if node is a voting member
+	ElectionTime    time.Time `json:"election"`        // Timestamp of initial election action
+	LastHeartBeat   time.Time `json:"hearbeat"`        // Timestamp of last hearbeat
 }
 
-//CreateNode ...
+// CreateNode returns a node instance with defaults set
 func CreateNode() Node {
 	return Node{
 		UUID:            generateUUID().String(),
@@ -40,6 +41,8 @@ func CreateNode() Node {
 	}
 }
 
+// Start runs the main node loop. It will run until the node has become the
+// leader or the node has joined the cluster
 func (node Node) Start() {
 	if _, err := os.Stat(stateFile); err == nil {
 		log.Info("Already a cluster member")
@@ -80,12 +83,13 @@ func (node Node) Start() {
 	}
 }
 
+// Begins leader election
 func electNode() {
-	latest, err := latestElection(nodePool)
+	earliest, err := earliestElection(nodePool)
 	if err != nil {
 		log.Error(err)
 	}
-	if len(nodePool) == 0 || latest.ElectionTime.After(currentNode.ElectionTime) {
+	if len(nodePool) == 0 || earliest.ElectionTime.After(currentNode.ElectionTime) {
 		currentNode.Voting = true
 		LeaderAsk(currentNode)
 		votes++
@@ -93,6 +97,7 @@ func electNode() {
 	}
 }
 
+// Removes "dead" nodes
 func cleanNodePool() {
 	for _, v := range nodePool {
 		if time.Since(v.LastHeartBeat).Seconds() > 30 {
@@ -102,6 +107,7 @@ func cleanNodePool() {
 	}
 }
 
+// Handles message processing
 func recieve() {
 	listener := make(chan MessageResponse)
 	go Listen(listener)
@@ -129,6 +135,7 @@ func recieve() {
 	}
 }
 
+// Adds node to microk8s cluster
 func addNode(response MessageResponse) {
 	app := "microk8s"
 	arg := "add-node"
@@ -139,11 +146,11 @@ func addNode(response MessageResponse) {
 		log.Error(err)
 	}
 	msg := strings.Split(string(stdout), "\n")
-	log.Info(msg)
 	log.Info("Allowing ", response.Address, ": ", response.Message.Node.UUID, " to join. Sending keys")
 	JoinResponse(response.Message.Node.UUID, msg[len(msg)-5:])
 }
 
+// Joins node to microk8s cluster
 func joinCluster(response MessageResponse) {
 	for _, key := range strings.Split(response.Message.Message, " microk8s join ") {
 		app := "microk8s"
@@ -166,9 +173,9 @@ func joinCluster(response MessageResponse) {
 	}
 }
 
-var nsUUID = uuid.Must(uuid.FromString("34b13033-50e7-4083-97f5-d389cf3a1c0e"))
-
+// Generates unique identifier
 func generateUUID() uuid.UUID {
+	nsUUID := uuid.Must(uuid.FromString("34b13033-50e7-4083-97f5-d389cf3a1c0e"))
 	id, err := uuid.NewV1()
 	if err != nil {
 		id, err = uuid.NewV4()
@@ -180,12 +187,13 @@ func generateUUID() uuid.UUID {
 	return id
 }
 
-func latestElection(nodePool map[string]Node) (Node, error) {
-	latest := Node{ElectionTime: time.Now()}
+// Finds the node with the earliest election time
+func earliestElection(nodePool map[string]Node) (Node, error) {
+	earliest := Node{ElectionTime: time.Now()}
 	for _, v := range nodePool {
-		if !v.ElectionTime.IsZero() && v.ElectionTime.Before(latest.ElectionTime) {
-			latest = v
+		if !v.ElectionTime.IsZero() && v.ElectionTime.Before(earliest.ElectionTime) {
+			earliest = v
 		}
 	}
-	return latest, nil
+	return earliest, nil
 }
