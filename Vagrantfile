@@ -1,6 +1,9 @@
 Vagrant.configure("2") do |config|
 
-  config.vm.provision "shell", path: "scripts/install.sh"
+  config.vm.provision "shell" do |s|
+     s.path = "scripts/install.sh"
+     s.args = "enp0s8"
+  end
 
   config.vm.synced_folder ".", "/opt/stampede"
 

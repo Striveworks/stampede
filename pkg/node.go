@@ -12,7 +12,7 @@ import (
 
 const (
 	voteCount = 10
-	stateFile = "/opt/stampede/is-joined"
+	stateFile = "/opt/stampede-is-joined"
 )
 
 var (
