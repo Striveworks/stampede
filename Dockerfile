@@ -18,18 +18,18 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o main .
+RUN go build -o stampede .
 
 # Move to /dist directory as the place for resulting binary folder
 WORKDIR /dist
 
 # Copy binary from build to main folder
-RUN cp /build/main .
+RUN cp /build/stampede .
 
 # Build a small image
 FROM scratch
 
-COPY --from=builder /dist/main /
+COPY --from=builder /dist/stampede /
 
 # Command to run
 ENTRYPOINT ["/main"]
