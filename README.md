@@ -6,9 +6,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="stampede.png" alt="Logo" width="600" height="300">
-  </a>
+  <img src="stampede.png" alt="Logo" width="600" height="300">
 
   <h3 align="center">Stampede</h3>
 
@@ -126,4 +124,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 [striveworks-shield]: https://img.shields.io/badge/BUILT%20BY-STRIVEWORKS-orange?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
+[license-url]: LICENSE.txt
