@@ -31,7 +31,7 @@ func Broadcast(message Message) {
 
 }
 
-//Listen recieves messages using UDP over a multicast channel
+//Listen receives messages using UDP over a multicast channel
 func Listen(c chan MessageResponse) {
 	defer close(c)
 	addr, err := net.ResolveUDPAddr("udp4", address)

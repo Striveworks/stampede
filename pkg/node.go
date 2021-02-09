@@ -13,6 +13,7 @@ import (
 const (
 	voteCount = 10
 	stateFile = "/opt/stampede-is-joined"
+	uuidNs    = "34b13033-50e7-4083-97f5-d389cf3a1c0e"
 )
 
 var (
@@ -53,10 +54,10 @@ func (node Node) Start() {
 	nodePool = make(map[string]Node)
 	votes = 0
 
-	go recieve()
+	go receive()
 
 	for {
-		go cleanNodePool()
+		go cleanNodePool(nodePool)
 
 		if !currentNode.IsLeader && currentNode.Voting && votes >= voteCount {
 			currentNode.IsLeader = true
@@ -98,7 +99,7 @@ func electNode() {
 }
 
 // Removes "dead" nodes
-func cleanNodePool() {
+func cleanNodePool(nodePool map[string]Node) {
 	for _, v := range nodePool {
 		if time.Since(v.LastHeartBeat).Seconds() > 30 {
 			delete(nodePool, v.UUID)
@@ -108,7 +109,7 @@ func cleanNodePool() {
 }
 
 // Handles message processing
-func recieve() {
+func receive() {
 	listener := make(chan MessageResponse)
 	go Listen(listener)
 
@@ -175,7 +176,7 @@ func joinCluster(response MessageResponse) {
 
 // Generates unique identifier
 func generateUUID() uuid.UUID {
-	nsUUID := uuid.Must(uuid.FromString("34b13033-50e7-4083-97f5-d389cf3a1c0e"))
+	nsUUID := uuid.Must(uuid.FromString(uuidNs))
 	id, err := uuid.NewV1()
 	if err != nil {
 		id, err = uuid.NewV4()
@@ -183,7 +184,6 @@ func generateUUID() uuid.UUID {
 			return uuid.NewV5(nsUUID, time.Now().String())
 		}
 	}
-
 	return id
 }
 

@@ -2,6 +2,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell" do |s|
      s.path = "scripts/install.sh"
+     # if necessary, change this to whatever interface you'd like
      s.args = "enp0s8"
   end
 
