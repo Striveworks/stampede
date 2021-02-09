@@ -119,7 +119,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <!-- CONTACT -->
 ## Contact
 
-[Striveworks](striveworks.us)
+[Striveworks](https://www.striveworks.us/)
 
 
 [striveworks-shield]: https://img.shields.io/badge/BUILT%20BY-STRIVEWORKS-orange?style=for-the-badge
