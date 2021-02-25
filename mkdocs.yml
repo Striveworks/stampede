@@ -1,0 +1,30 @@
+site_name: Stampede
+repo_url: https://github.com/Striveworks/stampede
+repo_name: Striveworks/stampede
+copyright: Made with ❤️ by Striveworks.
+theme:
+  custom_dir: docs/overrides
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - git-revision-date
+
+nav:
+- Home: index.md
+- Introduction: introduction.md
+- Usage: usage.md
+- Architecture: arch.md
+- Contributing: contrib.md
+- License: license.md
+
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.tabbed
+  - pymdownx.superfences

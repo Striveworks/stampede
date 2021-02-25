@@ -6,7 +6,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <img src="stampede.png" alt="Logo" width="600" height="300">
+  <img src="docs/static/stampede.png" alt="Logo" width="600" height="300">
 
   <h3 align="center">Stampede</h3>
 
