@@ -1,4 +1,4 @@
-[![Striveworks][striveworks-shield]][license-url]
+[![Striveworks][striveworks-shield]][strive-url]
 [![MIT License][license-shield]][license-url]
 
 
@@ -16,11 +16,9 @@
     <a href=""><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="">View Demo</a>
+    <a href="https://github.com/Striveworks/stampede/issues">Report Bug</a>
     ·
-    <a href="">Report Bug</a>
-    ·
-    <a href="">Request Feature</a>
+    <a href="https://github.com/Striveworks/stampede/issues">Request Feature</a>
   </p>
 </p>
 
@@ -121,7 +119,8 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 [Striveworks](https://www.striveworks.us/)
 
-
 [striveworks-shield]: https://img.shields.io/badge/BUILT%20BY-STRIVEWORKS-orange?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
+
 [license-url]: LICENSE.txt
+[strive-url]: https://striveworks.us/
