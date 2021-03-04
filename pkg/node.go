@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -31,6 +32,7 @@ type Node struct {
 	Voting          bool      `json:"voting"`          // Identifies if node is a voting member
 	ElectionTime    time.Time `json:"election"`        // Timestamp of initial election action
 	LastHeartBeat   time.Time `json:"hearbeat"`        // Timestamp of last hearbeat
+	ClusterCreds    string    `json:"clustercreds"`
 }
 
 // CreateNode returns a node instance with defaults set
@@ -62,6 +64,7 @@ func (node Node) Start() {
 		if !currentNode.IsLeader && currentNode.Voting && votes >= voteCount {
 			currentNode.IsLeader = true
 			log.Info("I am the captain now!")
+			go initCluster()
 
 		}
 
@@ -136,8 +139,40 @@ func receive() {
 	}
 }
 
+func initCluster() {
+	if viper.GetString("cluster-type") == "kubeadm" {
+
+		var cmd *exec.Cmd
+		if viper.GetString("advertise-address") != "" {
+			cmd = exec.Command("kubeadm", "init", "--apiserver-advertise-address", viper.GetString("advertise-address"))
+		} else {
+			cmd = exec.Command("kubeadm", "init")
+		}
+
+		stdout, err := cmd.Output()
+		if err != nil {
+			log.Error(err)
+		}
+		msg := strings.Split(string(stdout), "\n")
+		creds := strings.ReplaceAll(strings.Join(msg[len(msg)-3:], " "), "\\", "")
+		log.Info(creds)
+		currentNode.ClusterCreds = creds
+	}
+}
+
 // Adds node to microk8s cluster
 func addNode(response MessageResponse) {
+	log.Info("Allowing ", response.Address, ": ", response.Message.Node.UUID, " to join. Sending creds")
+	if viper.GetString("cluster-type") == "microk8s" {
+		addNodeMicroK8s(response)
+	}
+	if viper.GetString("cluster-type") == "kubeadm" {
+		JoinResponse(response.Message.Node.UUID, currentNode.ClusterCreds)
+	}
+}
+
+// Adds node to microk8s cluster
+func addNodeMicroK8s(response MessageResponse) {
 	app := "microk8s"
 	arg := "add-node"
 
@@ -147,12 +182,21 @@ func addNode(response MessageResponse) {
 		log.Error(err)
 	}
 	msg := strings.Split(string(stdout), "\n")
-	log.Info("Allowing ", response.Address, ": ", response.Message.Node.UUID, " to join. Sending keys")
-	JoinResponse(response.Message.Node.UUID, msg[len(msg)-5:])
+	JoinResponse(response.Message.Node.UUID, strings.Join(msg[len(msg)-5:], " "))
 }
 
 // Joins node to microk8s cluster
 func joinCluster(response MessageResponse) {
+	if viper.GetString("cluster-type") == "microk8s" {
+		joinClusterMicroK8s(response)
+	}
+	if viper.GetString("cluster-type") == "kubeadm" {
+		joinClusterKubeadm(response)
+	}
+}
+
+// Joins node to microk8s cluster
+func joinClusterMicroK8s(response MessageResponse) {
 	for _, key := range strings.Split(response.Message.Message, " microk8s join ") {
 		app := "microk8s"
 		arg := "join"
@@ -169,6 +213,30 @@ func joinCluster(response MessageResponse) {
 			os.Exit(0)
 		}
 	}
+	if !currentNode.IsJoined {
+		log.Error("Failed to join cluster")
+	}
+}
+
+// Joins node to kubeadm cluster
+func joinClusterKubeadm(response MessageResponse) {
+	ip := strings.Join(strings.Fields(response.Message.Message)[2:3], "")
+	token := strings.Join(strings.Fields(response.Message.Message)[4:5], "")
+	hash := strings.Join(strings.Fields(response.Message.Message)[6:], "")
+	cmd := exec.Command("kubeadm", "join", ip, "--token", token, "--discovery-token-ca-cert-hash", hash)
+	_, err := cmd.Output()
+	if err == nil {
+		currentNode.IsJoined = true
+		_, err := os.Create(stateFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Info("Joined cluster, shutting down...")
+		os.Exit(0)
+	} else {
+		log.Error(err)
+	}
+
 	if !currentNode.IsJoined {
 		log.Error("Failed to join cluster")
 	}

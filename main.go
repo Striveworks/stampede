@@ -1,11 +1,7 @@
 package main
 
-import (
-	"striveworks.us/stampede/pkg"
-)
+import "striveworks.us/stampede/cmd"
 
 func main() {
-	node := pkg.CreateNode()
-	node.Start()
-
+	cmd.Execute()
 }

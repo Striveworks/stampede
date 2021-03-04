@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"net"
-	"strings"
 	"time"
 )
 
@@ -41,7 +40,7 @@ func JoinRequest(node Node) {
 }
 
 // JoinResponse sends join keys to a specified node over multicast
-func JoinResponse(uuid string, keys []string) {
-	m := Message{Type: "JoinResponse", Recipient: uuid, Message: strings.Join(keys, " "), Timestamp: time.Now()}
+func JoinResponse(uuid string, creds string) {
+	m := Message{Type: "JoinResponse", Recipient: uuid, Message: creds, Timestamp: time.Now()}
 	Broadcast(m)
 }

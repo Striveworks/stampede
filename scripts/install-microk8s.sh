@@ -35,7 +35,7 @@ Description=stampede
 Type=simple
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/local/bin/stampede
+ExecStart=/usr/local/bin/stampede init
 
 [Install]
 WantedBy=multi-user.target
