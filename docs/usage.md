@@ -1,10 +1,17 @@
 ## Ubuntu
-The standard install will install go, microk8s and stampede. A systemd service
+The standard install will install stampede and it's dependencies. A systemd service
 will be created for stampede and run upon install.
 ```
 git clone git@github.com:Striveworks/stampede.git
 cd stampede
-make install
+```
+MicroK8s
+```
+make install-microk8s
+```
+Kubeadm
+```
+make install-kubeadm
 ```
 
 
@@ -16,5 +23,12 @@ Vagrant can be used test stampede or run on a set of VM's.
 ```
 git clone git@github.com:Striveworks/stampede.git
 cd stampede
-vagrant up
+```
+MicroK8s
+```
+export STAMPEDE_ENV=microk8s && vagrant up
+```
+Kubeadm
+```
+export STAMPEDE_ENV=kubeadm && vagrant up
 ```

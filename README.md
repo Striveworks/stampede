@@ -11,9 +11,9 @@
   <h3 align="center">Stampede</h3>
 
   <p align="center">
-    Bootstrap Microk8s clusters
+    Bootstrap kubernetes clusters
     <br />
-    <a href=""><strong>Explore the docs »</strong></a>
+    <a href="https://striveworks.github.io/stampede/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://github.com/Striveworks/stampede/issues">Report Bug</a>
@@ -53,7 +53,7 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-Stampede is meant to make bootstrapping Microk8s clusters seamless. It uses a simple election protocol to elect a leader and then followers will follow. The leader bootstraps the cluster and deals out join tokens to any followers. All communication is handled via a specified multicast channel.
+Stampede is meant to make bootstrapping kubernetes clusters seamless. It uses a simple election protocol to elect a leader and then followers will follow. The leader bootstraps the cluster and deals out join tokens to any followers. All communication is handled via a specified multicast channel.
 
 This project is inspired by Chic-fil-A's [Highlander](https://medium.com/@cfatechblog/bare-metal-k8s-clustering-at-chick-fil-a-scale-7b0607bd3541)
 
@@ -61,13 +61,18 @@ This project is inspired by Chic-fil-A's [Highlander](https://medium.com/@cfatec
 
 
 * [Go](https://golang.org/)
-* [Microk8s](https://microk8s.io/)
+
+### Supported Kubernetes distributions
+  - [X] MicroK8s
+  - [X] Kubeadm
+  - [ ] K3s
+  - [ ] RKE
 
 
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This can be run on any Ubuntu distribution. The install script will create systemd service and run it. Optionally, there is a Vagrant setup that can be used to spin up 3 VMs and bootstrap them into a microk8s cluster.
+This can be run on any Ubuntu distribution. The install script will create systemd service and run it. Optionally, there is a Vagrant setup that can be used to spin up 3 VMs and bootstrap them into a kubernetes cluster.
 
 ### Prerequisites
 
@@ -75,7 +80,7 @@ Currently, this project only offers support for Ubuntu distributions
 
 ### Installation
 
-1. `make install`
+1. `make install-microk8s` or `make install-kubeadm`
 
 
 ### Testing
