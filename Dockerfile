@@ -26,10 +26,17 @@ WORKDIR /dist
 # Copy binary from build to main folder
 RUN cp /build/stampede .
 
+# Create nonroot user while we still have /bin/ash
+RUN echo "nobody:x:65534:65534:nobody:/:/sbin/nologin" >> /tmp/nobody
+
 # Build a small image
 FROM scratch
 
 COPY --from=builder /dist/stampede /
+
+# Bring over the nobody user & su
+COPY --from=builder /tmp/nobody /etc/passwd
+USER nobody
 
 # Command to run
 ENTRYPOINT ["/main"]
